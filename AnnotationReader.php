@@ -9,11 +9,11 @@ class AnnotationReader
     {
         
         $controllerReflection = new ExtendedReflectionClass($className);
-        $methods_reflection = $controllerReflection->getMethods();
+        $methods_reflection = $controllerReflection->getMethods(ReflectionMethod::IS_PUBLIC);
+
         foreach($methods_reflection as $method){
             $this->parseMethodDocBlock($method, $controllerReflection);
         }
-        // var_dump($methods_reflection);
     }
 
     public function parseMethodDocBlock(ReflectionMethod $method, ExtendedReflectionClass $class)
@@ -23,15 +23,15 @@ class AnnotationReader
             return;
         }
         $docBlock = $this->normalizeDocBlock($docBlock);
-        $this->getAnnotationStringsWithBracketsParams($docBlock, $class);
+        $this->getAnnotationStringsWithBracketsParams($docBlock, $class, $method);
     }
-    public function getAnnotationStringsWithBracketsParams(string $docBlock,ExtendedReflectionClass $class)
+    public function getAnnotationStringsWithBracketsParams(string $docBlock,ExtendedReflectionClass $class,ReflectionMethod $method)
     {
         $annotationStrings = explode("\n", trim($docBlock));
         $notEmpty = array_filter($annotationStrings, function($var){return !empty(trim($var));});
-        var_dump($notEmpty);
-        $annotationObjects = array_map(function($string) use($class){
-            return new AnnotationWithBracketsParams($string, $class);
+
+        $annotationObjects = array_map(function($string) use($class, $method){
+            return new AnnotationWithBracketsParams($string, $class, $method);
         }, $notEmpty);
 
         foreach($annotationObjects as $annotation){
@@ -66,11 +66,10 @@ class AnnotationReader
 
         $classNameWithNamespace = $this->findInUsesByName($annotation->annotationName, $classUses);
         if($classNameWithNamespace != null){
-            echo $annotation->annotationName." is user defined annotation $classNameWithNamespace\n";
-            $newObj = new $classNameWithNamespace();
-            $newObj->hello();
-        } else {
-            echo $annotation->annotationName." is not user defined annotation\n";
+            $newObj = new $classNameWithNamespace($annotation);
+            if(!$newObj instanceof AbstractAnnotation){
+                echo "not good class\n";
+            }
         }
         // include_once($filePath);
         // $className = $annotation->annotationName;
